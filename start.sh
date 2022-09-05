@@ -2,17 +2,47 @@
 # Oliver Epper <oliver.epper@gmail.com>
 
 export OPUS_VERSION=v1.3.1
+CFLAGS="-O2 -fembed-bitcode"
+TARGETS="IOS_SIM_ARM64 IOS_SIM_X86_64 IOS_ARM64 MACOS_ARM64 MACOS_X86_64"
+BUILD_DIR=$PWD/build
 
 function clean {
     echo "Cleaning"
     rm -rf opus build
-    rm clean.sh
+    rm clean.sh .install.sh
+}
+
+function install {
+    local PREFIX=$1
+    
+    mkdir -p $PREFIX/lib/pkgconfig
+
+    # copy xcframework
+    cp -a build/libopus.xcframework $PREFIX
+
+    # link in lib
+    pushd $PREFIX/lib
+    ln -sf ../libopus.xcframework .
+    popd
+
+    # link in include
+    pushd $PREFIX
+    ln -sf libopus.xcframework/Headers include
+    popd
+
+    # create pkg-config files
+
+    exit 0
 }
 
 me=`basename $0`
 if [[ $me = "clean.sh" ]]
 then
     clean
+    exit 0
+elif [[ $me = ".install.sh" ]]
+then
+    install $1
     exit 0
 fi
 
@@ -21,10 +51,12 @@ then
     ln -sf start.sh clean.sh
 fi
 
+if [[ ! -f .install.sh ]]
+then
+    ln -sf start.sh .install.sh
+fi
+
 git -c advice.detachedHead=false clone --depth 1 --branch $OPUS_VERSION https://gitlab.xiph.org/xiph/opus
-
-CFLAGS="-O2 -fembed-bitcode"
-
 
 #
 # prepare
@@ -35,12 +67,6 @@ then
     ./autogen.sh
 fi
 popd
-
-mkdir -p build
-BUILD_DIR=$PWD/build
-echo $BUILD_DIR
-
-TARGETS="IOS_SIM_ARM64 IOS_SIM_X86_64 IOS_ARM64 MACOS_ARM64 MACOS_X86_64"
 
 #
 # build for iOS simulator running on arm64
