@@ -2,3 +2,4 @@ opus
 clean.sh
 build
 .DS_Store
+.install.sh

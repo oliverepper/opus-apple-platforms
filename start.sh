@@ -16,6 +16,11 @@ function clean {
 
 function install {
     local PREFIX=$1
+    local PC_FILE=opus-apple-platforms.pc
+	local PC_FILE_MACOSX=opus-apple-platforms-MacOSX.pc
+	local PC_FILE_IPHONEOS=opus-apple-platforms-iPhoneOS.pc
+	local PC_FILE_IPHONESIMULATOR=opus-apple-platforms-iPhoneSimulator.pc
+	local PC_FILE_SPM=opus-apple-platforms-SPM.pc
     
     mkdir -p $PREFIX/lib/pkgconfig
 
@@ -33,6 +38,40 @@ function install {
     popd
 
     # create pkg-config files
+    # for macOS (arm64 and x86_64)
+    cat << END > $PREFIX/lib/pkgconfig/$PC_FILE_MACOSX
+prefix=$PREFIX
+
+END
+
+    cat << 'END' >> $PREFIX/lib/pkgconfig/$PC_FILE_MACOSX
+exec_prefix=${prefix}
+libdir=${exec_prefix}/libopus.xcframework/macos-arm64_x86_64
+includedir=${prefix}/libopus.xcframework/Headers
+
+Name: Opus
+Description: Opus IETF audio codec
+URL: https://opus-codec.org/
+END
+
+    echo "Version: ${OPUS_VERSION:1}" >> $PREFIX/lib/pkgconfig/$PC_FILE_MACOSX
+
+    cat << 'END' >> $PREFIX/lib/pkgconfig/$PC_FILE_MACOSX
+Libs: -L${libdir} -lopus
+Cflags: -I${includedir}/opus
+END
+
+    # for iOS
+    sed -e s/macos-arm64_x86_64/ios_arm64/ < $PREFIX/lib/pkgconfig/$PC_FILE_MACOSX > $PREFIX/lib/pkgconfig/$PC_FILE_IPHONEOS 
+
+    # for iOS simulator
+    sed -e s/macos-arm64_x86_64/ios-arm64_x86_64-simulator/ < $PREFIX/lib/pkgconfig/$PC_FILE_MACOSX > $PREFIX/lib/pkgconfig/$PC_FILE_IPHONESIMULATOR 
+
+    # for SPM
+    sed -e /^libdir=/d -e 's/^Libs: .*$/Libs: -lopus/' < $PREFIX/lib/pkgconfig/$PC_FILE_MACOSX > $PREFIX/lib/pkgconfig/$PC_FILE_SPM
+
+    # link pjproject-apple-platforms.pc
+	ln -sf $PREFIX/lib/pkgconfig/$PC_FILE_MACOSX $PREFIX/lib/pkgconfig/$PC_FILE
 
     exit 0
 }
