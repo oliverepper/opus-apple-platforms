@@ -1,6 +1,8 @@
 #!/bin/sh
 # Oliver Epper <oliver.epper@gmail.com>
 
+# .install.sh cannot be named install.sh because of automake issues (libtoolize)
+
 export OPUS_VERSION=v1.3.1
 CFLAGS="-O2 -fembed-bitcode"
 TARGETS="IOS_SIM_ARM64 IOS_SIM_X86_64 IOS_ARM64 MACOS_ARM64 MACOS_X86_64"
