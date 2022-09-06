@@ -73,6 +73,18 @@ END
     # link pjproject-apple-platforms.pc
 	ln -sf $PREFIX/lib/pkgconfig/$PC_FILE_MACOSX $PREFIX/lib/pkgconfig/$PC_FILE
 
+    # install build dir
+    # for iOS simulator arm64 & x86_64
+    cp -a $BUILD_DIR/iOS_simulator_arm64 $PREFIX
+    cp -a $BUILD_DIR/iOS_simulator_x86_64 $PREFIX
+
+    # for iOS
+    cp -a $BUILD_DIR/iOS_arm64 $PREFIX
+
+    # for macOS
+    cp -a $BUILD_DIR/macOS_arm64 $PREFIX
+    cp -a $BUILD_DIR/macOS_x86_64 $PREFIX
+
     exit 0
 }
 
