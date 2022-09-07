@@ -130,7 +130,7 @@ rm -rf $OUT_IOS_SIM_ARM64
 pushd opus
 make clean
 ./configure --prefix=$OUT_IOS_SIM_ARM64 --host=arm-apple-darwin \
-    CFLAGS="-isysroot `xcrun -sdk iphonesimulator --show-sdk-path` $CFLAGS" 
+    CFLAGS="-isysroot `xcrun -sdk iphonesimulator --show-sdk-path` -miphonesimulator-version-min=13.0 $CFLAGS" 
 make
 make install
 popd
@@ -145,7 +145,7 @@ rm -rf $OUT_IOS_SIM_X86_64
 pushd opus
 make clean
 arch -arch x86_64 ./configure --prefix=$OUT_IOS_SIM_X86_64 --host=x86_64-apple-darwin \
-    CFLAGS="-isysroot `xcrun -sdk iphonesimulator --show-sdk-path` $CFLAGS"
+    CFLAGS="-isysroot `xcrun -sdk iphonesimulator --show-sdk-path` -miphonesimulator-version-min=13.0 $CFLAGS"
 arch -arch x86_64 make
 arch -arch x86_64 make install
 popd
@@ -160,7 +160,7 @@ rm -rf $OUT_IOS_ARM64
 pushd opus
 make clean
 ./configure --prefix=$OUT_IOS_ARM64 --host=arm-apple-darwin \
-    CFLAGS="-isysroot `xcrun -sdk iphoneos --show-sdk-path` $CFLAGS"
+    CFLAGS="-isysroot `xcrun -sdk iphoneos --show-sdk-path` -miphoneos-version-min=13.0 $CFLAGS"
 make
 make install
 popd
@@ -175,7 +175,7 @@ rm -rf $OUT_MACOS_ARM64
 pushd opus
 make clean
 ./configure --prefix=$OUT_MACOS_ARM64 --host=arm-apple-darwin \
-    CFLAGS="-isysroot `xcrun -sdk macosx --show-sdk-path` $CFLAGS"
+    CFLAGS="-isysroot `xcrun -sdk macosx --show-sdk-path` -mmacosx-version-min=11 $CFLAGS"
 make
 make install
 popd
@@ -191,7 +191,7 @@ CFLAGS=" $CFLAGS"
 pushd opus
 make clean
 arch -arch x86_64 ./configure --prefix=$OUT_MACOS_X86_64 --host=x86_64-apple-darwin \
-    CFLAGS="-isysroot `xcrun -sdk macosx --show-sdk-path` $CFLAGS"
+    CFLAGS="-isysroot `xcrun -sdk macosx --show-sdk-path` -mmacosx-version-min=11 $CFLAGS"
 arch -arch x86_64 make
 arch -arch x86_64 make install
 popd
