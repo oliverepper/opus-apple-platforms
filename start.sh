@@ -148,5 +148,13 @@ cp -a "$OUT_MACOS_ARM64"/include/* "$XCFRAMEWORK"/Headers
 rm -rf "$OUT_IOS_SIM"
 rm -rf "$OUT_MACOS"
 
+#
+# link lib & include
+#
 ln -sf "$PREFIX"/"macOS_$(arch)"/lib "$PREFIX"
 ln -sf "$PREFIX"/"macOS_$(arch)"/include "$PREFIX"
+
+#
+# create pkgconfig for SPM
+#
+sed -e /^libdir=/d -e 's/^Libs: .*$/Libs: -lopus/' < "$PREFIX"/lib/pkgconfig/opus.pc > "$PREFIX"/lib/pkgconfig/opus-SPM.pc
