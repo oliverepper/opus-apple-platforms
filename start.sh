@@ -152,12 +152,10 @@ rm -rf "$OUT_MACOS"
 #
 # don't just link lib & include
 #
-echo "HERE"
 mkdir -p "$PREFIX"/{"lib/pkgconfig",include}
 cp -a "$PREFIX"/"macOS_$(arch)"/include/* "$PREFIX"/include
 
 #
 # create pkgconfig for SPM
 #
-echo "HERE2"
 sed -e /^libdir=/d -e 's/^Libs: .*$/Libs: -lopus/' < "$PREFIX"/"macOS_$(arch)"/lib/pkgconfig/opus.pc > "$PREFIX"/lib/pkgconfig/opus-SPM.pc
