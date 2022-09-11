@@ -11,7 +11,7 @@ fi
 
 PREFIX=$1
 OPUS_VERSION=v1.3.1
-CFLAGS="-O2 -fembed-bitcode"
+CFLAGS="-O2 -fembed-bitcode -fPIC"
 TARGETS="IOS_SIM_ARM64 IOS_SIM_X86_64 IOS_ARM64 MACOS_ARM64 MACOS_X86_64"
 
 if [ -d opus ]
@@ -132,7 +132,8 @@ fi
 #
 # create xcframework
 #
-XCFRAMEWORK="$PREFIX/libopus.xcframework"
+mkdir -p "$PREFIX"/lib
+XCFRAMEWORK="$PREFIX/lib/libopus.xcframework"
 rm -rf "$XCFRAMEWORK"
 xcodebuild -create-xcframework \
 -library "$OUT_IOS_ARM64"/lib/libopus.a \
@@ -149,12 +150,14 @@ rm -rf "$OUT_IOS_SIM"
 rm -rf "$OUT_MACOS"
 
 #
-# link lib & include
+# don't just link lib & include
 #
-ln -sf "$PREFIX"/"macOS_$(arch)"/lib "$PREFIX"
-ln -sf "$PREFIX"/"macOS_$(arch)"/include "$PREFIX"
+echo "HERE"
+mkdir -p "$PREFIX"/{"lib/pkgconfig",include}
+cp -a "$PREFIX"/"macOS_$(arch)"/include/* "$PREFIX"/include
 
 #
 # create pkgconfig for SPM
 #
-sed -e /^libdir=/d -e 's/^Libs: .*$/Libs: -lopus/' < "$PREFIX"/lib/pkgconfig/opus.pc > "$PREFIX"/lib/pkgconfig/opus-SPM.pc
+echo "HERE2"
+sed -e /^libdir=/d -e 's/^Libs: .*$/Libs: -lopus/' < "$PREFIX"/"macOS_$(arch)"/lib/pkgconfig/opus.pc > "$PREFIX"/lib/pkgconfig/opus-SPM.pc
