@@ -156,6 +156,9 @@ mkdir -p "$PREFIX"/{"lib/pkgconfig",include}
 cp -a "$PREFIX"/"macOS_$(arch)"/include/* "$PREFIX"/include
 
 #
-# create pkgconfig for SPM
+# create pkgconfig for system and SPM
 #
+pushd "$PREFIX"/lib/pkgconfig
+ln -sf ../../macOS_"$(arch)"/lib/pkgconfig/opus.pc .
+popd
 sed -e /^libdir=/d -e 's/^Libs: .*$/Libs: -lopus/' < "$PREFIX"/"macOS_$(arch)"/lib/pkgconfig/opus.pc > "$PREFIX"/lib/pkgconfig/opus-SPM.pc
