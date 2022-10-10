@@ -11,154 +11,126 @@ fi
 
 PREFIX=$1
 OPUS_VERSION=v1.3.1
-CFLAGS="-O2 -fembed-bitcode -fPIC"
-TARGETS="IOS_SIM_ARM64 IOS_SIM_X86_64 IOS_ARM64 MACOS_ARM64 MACOS_X86_64"
+IOS_TOOLCHAIN_VERSION=4.3.0
 
 if [ -d opus ]
 then
     pushd opus
+    git clean -fxd
     git reset --hard $OPUS_VERSION
     popd
 else
     git -c advice.detachedHead=false clone --depth 1 --branch $OPUS_VERSION https://gitlab.xiph.org/xiph/opus
 fi
 
-#
-# prepare
-#
-pushd opus
-if [[ ! -f configure ]]
+if [ -d ios-cmake ]
 then
-    ./autogen.sh
-fi
-popd
-
-#
-# build for iOS simulator running on arm64
-#
-OUT_IOS_SIM_ARM64=$PREFIX/iOS_simulator_arm64
-if [[ $TARGETS =~ "IOS_SIM_ARM64" ]]; then
-rm -rf "$OUT_IOS_SIM_ARM64"
-pushd opus
-./configure --prefix="$OUT_IOS_SIM_ARM64" --host=arm-apple-darwin \
-    CFLAGS="-isysroot $(xcrun -sdk iphonesimulator --show-sdk-path) -miphonesimulator-version-min=13.0 $CFLAGS" 
-make
-make install
-make clean
-popd
+    pushd ios-cmake
+    git clean -fxd
+    git reset --hard $IOS_TOOLCHAIN_VERSION
+    popd
+else
+    git -c advice.detachedHead=false clone --depth 1 --branch $IOS_TOOLCHAIN_VERSION https://github.com/leetal/ios-cmake.git
 fi
 
-#
-# build for iOS simulator running on x86_64
-#
-OUT_IOS_SIM_X86_64=$PREFIX/iOS_simulator_x86_64
-if [[ $TARGETS =~ "IOS_SIM_X86_64" ]]; then
-rm -rf "$OUT_IOS_SIM_X86_64"
-pushd opus
-arch -arch x86_64 ./configure --prefix="$OUT_IOS_SIM_X86_64" --host=x86_64-apple-darwin \
-    CFLAGS="-isysroot $(xcrun -sdk iphonesimulator --show-sdk-path) -miphonesimulator-version-min=13.0 $CFLAGS"
-arch -arch x86_64 make
-arch -arch x86_64 make install
-arch -arch x86_64 make clean
-popd
-fi
+function build {
+    local TOOLCHAIN_PLATFORM_NAME=$1
+    local INSTALL_PREFIX=$2
+    local DEPLOYMENT_TARGET=$3
 
-#
-# build for iOS arm64
-#
-OUT_IOS_ARM64=$PREFIX/iOS_arm64
-if [[ $TARGETS =~ "IOS_ARM64" ]]; then
-rm -rf "$OUT_IOS_ARM64"
-pushd opus
-./configure --prefix="$OUT_IOS_ARM64" --host=arm-apple-darwin \
-    CFLAGS="-isysroot $(xcrun -sdk iphoneos --show-sdk-path) -miphoneos-version-min=13.0 $CFLAGS"
-make
-make install
-make clean
-popd
-fi
+    echo "Building for platform ${TOOLCHAIN_PLATFORM_NAME} with deployment target ${DEPLOYMENT_TARGET}"
+    echo "Installing to: ${INSTALL_PREFIX}"
 
-#
-# build for macOS arm64
-#
-OUT_MACOS_ARM64=$PREFIX/macOS_arm64
-if [[ $TARGETS =~ "MACOS_ARM64" ]]; then
-rm -rf "$OUT_MACOS_ARM64"
-pushd opus
-make clean
-./configure --prefix="$OUT_MACOS_ARM64" --host=arm-apple-darwin \
-    CFLAGS="-isysroot $(xcrun -sdk macosx --show-sdk-path) -mmacosx-version-min=11 $CFLAGS"
-make
-make install
-make clean
-popd
-fi
+    cmake -Bbuild/"${TOOLCHAIN_PLATFORM_NAME}" \
+        -Sopus \
+        -G Ninja \
+        -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+        -DCMAKE_TOOLCHAIN_FILE=../ios-cmake/ios.toolchain.cmake \
+        -DPLATFORM="${TOOLCHAIN_PLATFORM_NAME}" \
+        -DCMAKE_OSX_DEPLOYMENT_TARGET="${DEPLOYMENT_TARGET}" \
+        -DENABLE_BITCODE=OFF &&
 
-#
-# build for macOS x86_64
-#
-OUT_MACOS_X86_64=$PREFIX/macOS_x86_64
-if [[ $TARGETS =~ "MACOS_X86_64" ]]; then
-rm -rf "$OUT_MACOS_X86_64"
-CFLAGS=" $CFLAGS"
-pushd opus
-make clean
-arch -arch x86_64 ./configure --prefix="$OUT_MACOS_X86_64" --host=x86_64-apple-darwin \
-    CFLAGS="-isysroot $(xcrun -sdk macosx --show-sdk-path) -mmacosx-version-min=11 $CFLAGS"
-arch -arch x86_64 make
-arch -arch x86_64 make install
-arch -arch x86_64 make clean
-popd
-fi
+    cmake --build build/"${TOOLCHAIN_PLATFORM_NAME}" \
+        --config Release \
+        --target install
+}
 
-#
-# create fat lib for the mac
-#
-if [ -f "$OUT_MACOS_ARM64"/lib/libopus.a ] && [ -f "$OUT_MACOS_X86_64"/lib/libopus.a ]; then
-OUT_MACOS=$PREFIX/macOS
-mkdir -p "$OUT_MACOS"/lib
-lipo -create "$OUT_MACOS_ARM64"/lib/libopus.a "$OUT_MACOS_X86_64"/lib/libopus.a -output "$OUT_MACOS"/lib/libopus.a
-fi
 
-#
-# create fat lib for the simulator
-#
-if [ -f "$OUT_IOS_SIM_ARM64"/lib/libopus.a ] && [ -f "$OUT_IOS_SIM_X86_64"/lib/libopus.a ]; then
-OUT_IOS_SIM=$PREFIX/iOS_simulator
-mkdir -p "$OUT_IOS_SIM"/lib
-lipo -create "$OUT_IOS_SIM_ARM64"/lib/libopus.a "$OUT_IOS_SIM_X86_64"/lib/libopus.a -output "$OUT_IOS_SIM"/lib/libopus.a
-fi
+# build for iOS on arm64#
+IOS_ARM64_INSTALL_PREFIX="${PREFIX}/ios-arm64"
+build OS64 "${IOS_ARM64_INSTALL_PREFIX}" 13.0
 
-#
+# build for iOS simulator on arm64
+IOS_ARM64_SIMULATOR_INSTALL_PREFIX="${PREFIX}/ios-arm64-simulator"
+build SIMULATORARM64 "${IOS_ARM64_SIMULATOR_INSTALL_PREFIX}" 13.0
+
+# build for iOS simulator on x86_64
+IOS_X86_64_SIMULATOR_INSTALL_PREFIX="${PREFIX}/ios-x86_64-simulator"
+build SIMULATOR64 "${IOS_X86_64_SIMULATOR_INSTALL_PREFIX}" 13.0
+
+# build fat lib for simulator
+IOS_ARM64_X86_64_SIMULATOR_INSTALL_PREFIX="${PREFIX}/ios-arm64_x86_64-simulator"
+mkdir -p "${IOS_ARM64_X86_64_SIMULATOR_INSTALL_PREFIX}/lib"
+lipo -create \
+    "${IOS_ARM64_SIMULATOR_INSTALL_PREFIX}/lib/libopus.a" \
+    "${IOS_X86_64_SIMULATOR_INSTALL_PREFIX}/lib/libopus.a" \
+    -output \
+    "${IOS_ARM64_X86_64_SIMULATOR_INSTALL_PREFIX}/lib/libopus.a"
+
+# build for Catalyst on arm64
+IOS_ARM64_MACCATALYST_INSTALL_PREFIX="${PREFIX}/ios-arm64-maccatalyst"
+build MAC_CATALYST_ARM64 "${IOS_ARM64_MACCATALYST_INSTALL_PREFIX}" 13.1
+
+# build for Catalyst on x86_64
+IOS_X86_64_MACCATALYST_INSTALL_PREFIX="${PREFIX}/ios-x86_64-maccatalyst"
+build MAC_CATALYST "${IOS_X86_64_MACCATALYST_INSTALL_PREFIX}" 13.1
+
+# build fat lib for catalyst
+IOS_ARM64_X86_64_MACCATALYST_INSTALL_PREFIX="${PREFIX}/ios-arm64_x86_64-maccatalyst"
+mkdir -p "${IOS_ARM64_X86_64_MACCATALYST_INSTALL_PREFIX}/lib"
+lipo -create \
+    "${IOS_ARM64_MACCATALYST_INSTALL_PREFIX}/lib/libopus.a" \
+    "${IOS_X86_64_MACCATALYST_INSTALL_PREFIX}/lib/libopus.a" \
+    -output \
+    "${IOS_ARM64_X86_64_MACCATALYST_INSTALL_PREFIX}/lib/libopus.a"
+
+# build for macOS on arm64
+MACOS_ARM64_INSTALL_PREFIX="${PREFIX}/macos-arm64"
+build MAC_ARM64 "${MACOS_ARM64_INSTALL_PREFIX}" 11.0
+
+# build for macOS on x86_64
+MACOS_X86_64_INSTALL_PREFIX="${PREFIX}/macos-x86_64"
+build MAC "${MACOS_X86_64_INSTALL_PREFIX}" 11.0
+
+# build fat lib for macos
+MACOS_ARM64_X86_64_INSTALL_PREFIX="${PREFIX}/macos-arm64_x86_64"
+mkdir -p "${MACOS_ARM64_X86_64_INSTALL_PREFIX}/lib"
+lipo -create \
+    "${MACOS_ARM64_INSTALL_PREFIX}/lib/libopus.a" \
+    "${MACOS_X86_64_INSTALL_PREFIX}/lib/libopus.a" \
+    -output \
+    "${MACOS_ARM64_X86_64_INSTALL_PREFIX}/lib/libopus.a"
+
 # create xcframework
-#
 mkdir -p "$PREFIX"/lib
 XCFRAMEWORK="$PREFIX/lib/libopus.xcframework"
 rm -rf "$XCFRAMEWORK"
 xcodebuild -create-xcframework \
--library "$OUT_IOS_ARM64"/lib/libopus.a \
--library "$OUT_IOS_SIM"/lib/libopus.a \
--library "$OUT_MACOS"/lib/libopus.a \
--output "$XCFRAMEWORK"
+-library "${IOS_ARM64_INSTALL_PREFIX}/lib/libopus.a" \
+-headers "${IOS_ARM64_INSTALL_PREFIX}/include" \
+-library "${IOS_ARM64_X86_64_SIMULATOR_INSTALL_PREFIX}/lib/libopus.a" \
+-headers "${IOS_ARM64_SIMULATOR_INSTALL_PREFIX}/include" \
+-library "${IOS_ARM64_X86_64_MACCATALYST_INSTALL_PREFIX}/lib/libopus.a" \
+-headers "${IOS_ARM64_MACCATALYST_INSTALL_PREFIX}/include" \
+-library "${MACOS_ARM64_X86_64_INSTALL_PREFIX}/lib/libopus.a" \
+-headers "${MACOS_ARM64_INSTALL_PREFIX}/include" \
+-output "${XCFRAMEWORK}"
 
-mkdir -p "$XCFRAMEWORK"/Headers
-cp -a "$OUT_MACOS_ARM64"/include/* "$XCFRAMEWORK"/Headers
+# install the system version
+cp -a "${PREFIX}/macOS-$(arch)/include" "${PREFIX}"
+cp -a "${PREFIX}/macOS-$(arch)/lib" "${PREFIX}"
 
-/usr/libexec/PlistBuddy -c 'add:HeadersPath string Headers' "$XCFRAMEWORK"/Info.plist
-
-rm -rf "$OUT_IOS_SIM"
-rm -rf "$OUT_MACOS"
-
-#
-# don't just link lib & include
-#
-mkdir -p "$PREFIX"/{"lib/pkgconfig",include}
-cp -a "$PREFIX"/"macOS_$(arch)"/include/* "$PREFIX"/include
-
-#
-# create pkgconfig for system and SPM
-#
-pushd "$PREFIX"/lib/pkgconfig
-ln -sf ../../macOS_"$(arch)"/lib/pkgconfig/opus.pc .
-popd
-sed -e /^libdir=/d -e 's/^Libs: .*$/Libs: -lopus/' < "$PREFIX"/"macOS_$(arch)"/lib/pkgconfig/opus.pc > "$PREFIX"/lib/pkgconfig/opus-SPM.pc
+# clean-up for now
+rm -rf "${IOS_ARM64_X86_64_SIMULATOR_INSTALL_PREFIX}"
+rm -rf "${IOS_ARM64_X86_64_MACCATALYST_INSTALL_PREFIX}"
+rm -rf "${MACOS_ARM64_X86_64_INSTALL_PREFIX}"
